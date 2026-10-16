@@ -1,0 +1,4 @@
+-r requirements.txt
+# Browser end to end tests only (tests/e2e, RUN_E2E=1). Not installed in the Docker image.
+# After installing: python -m playwright install chromium
+playwright==1.64.0

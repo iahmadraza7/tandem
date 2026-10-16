@@ -1,0 +1,16 @@
+{
+  "_note": "Fictional demo businesses. Phone entries marked {DEMO_FRONT_DESK_NUMBER} ring Daniyal's phone, who plays the front desk.",
+  "clinic": [
+    {"id": "seed-clinic-1", "name": "Bright Smile Dental (demo)", "address": "Demo address 1", "rating": 4.8, "reviews": 312, "phone": "{DEMO_FRONT_DESK_NUMBER}", "website": null, "open_now": true, "booking": null},
+    {"id": "seed-clinic-2", "name": "Demo Dental Clinic, online booking", "address": "Demo address 2", "rating": 4.6, "reviews": 128, "phone": null, "website": null, "open_now": true, "booking": {"type": "calcom"}},
+    {"id": "seed-clinic-3", "name": "Riverside Family Dentistry (demo)", "address": "Demo address 3", "rating": 4.4, "reviews": 95, "phone": null, "website": null, "open_now": false, "booking": null}
+  ],
+  "hotel": [
+    {"id": "seed-hotel-1", "name": "Grand Avenue Hotel (demo)", "address": "Demo address 4", "rating": 4.5, "reviews": 1840, "phone": "{DEMO_FRONT_DESK_NUMBER}", "website": null, "open_now": true, "booking": null},
+    {"id": "seed-hotel-2", "name": "Harbor Inn (demo)", "address": "Demo address 5", "rating": 4.2, "reviews": 640, "phone": null, "website": null, "open_now": true, "booking": null}
+  ],
+  "restaurant": [
+    {"id": "seed-rest-1", "name": "Saffron House (demo)", "address": "Demo address 6", "rating": 4.7, "reviews": 2210, "phone": "{DEMO_FRONT_DESK_NUMBER}", "website": null, "open_now": true, "booking": null},
+    {"id": "seed-rest-2", "name": "Karahi Corner (demo)", "address": "Demo address 7", "rating": 4.5, "reviews": 980, "phone": null, "website": null, "open_now": true, "booking": null}
+  ]
+}

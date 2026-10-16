@@ -1,0 +1,19 @@
+name: restaurant
+display: Restaurant
+keywords: [restaurant, table, dinner, lunch, eat, curry, food, reservation, biryani, pizza]
+search_query: "{what} restaurant near {where}"
+goal: Reserve a table - {what}.
+consent_fields:
+  - {key: name, label: Name, default: "{user_name}", share_by_default: true}
+  - {key: party_size, label: Party size, default: "{party_size}", share_by_default: true}
+  - {key: dietary_notes, label: Dietary notes, default: "", share_by_default: false}
+  - {key: callback_number, label: Callback number, default: "", share_by_default: false}
+default_limits:
+  window_start: null
+  window_end: null
+  tolerance_minutes: 0
+  budget_cap: null
+  deposit_allowed: false
+decisions_for_user: [different time, waitlist, deposit for large groups, seating area]
+confirmation_fields: [date, time, party size]
+opening_line: "Hi, I'm an AI assistant calling on behalf of {user_name} to reserve a table. Do you have a moment?"

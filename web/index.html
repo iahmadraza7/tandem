@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tandem</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">Tandem <span>the agent calls, you decide</span></div>
+    <div id="health" class="health"></div>
+  </header>
+
+  <!-- Shown when the server no longer knows this session (it restarted; nothing is persisted) -->
+  <div id="stale" class="stale hidden" role="alert">
+    <span>This session ended because the server restarted. Start a new request.</span>
+    <button type="button" id="stale-reset">Start a new request</button>
+  </div>
+
+  <!-- Decision cards (Checkpoint 3): sticky at the top while open -->
+  <div id="cards" class="cards" aria-live="assertive"></div>
+
+  <main class="layout">
+    <section class="flow">
+      <!-- Step 1: request -->
+      <div class="panel" id="step-request">
+        <h2>What do you need?</h2>
+        <div class="niches">
+          <label><input type="radio" name="playbook" value="" checked> Auto</label>
+          <label><input type="radio" name="playbook" value="clinic"> Clinic</label>
+          <label><input type="radio" name="playbook" value="hotel"> Hotel</label>
+          <label><input type="radio" name="playbook" value="restaurant"> Restaurant</label>
+        </div>
+        <form id="request-form" class="row">
+          <input id="request-text" placeholder="Dentist near Gulberg Lahore for a cleaning next week" autocomplete="off">
+          <button type="submit">Find</button>
+        </form>
+        <form id="clarify-form" class="clarify hidden"></form>
+      </div>
+
+      <!-- Step 2: shortlist (Checkpoint 1) -->
+      <div class="panel hidden" id="step-shortlist">
+        <h2>Pick a place <span class="cp">Checkpoint 1</span></h2>
+        <div id="places" class="places"></div>
+      </div>
+
+      <!-- Step 3: consent (Checkpoint 2) -->
+      <div class="panel hidden" id="step-consent">
+        <h2>What may the agent share? <span class="cp">Checkpoint 2</span></h2>
+        <form id="consent-form">
+          <fieldset id="consent-fieldset">
+            <div id="consent-fields" class="fields"></div>
+            <h3>Your limits <small>the Guardian decides inside these without asking you</small></h3>
+            <div class="limits">
+              <label>Earliest time <input type="datetime-local" name="window_start"></label>
+              <label>Latest time <input type="datetime-local" name="window_end"></label>
+              <label>Flex (minutes) <input type="number" name="tolerance_minutes" value="0" min="0"></label>
+              <label>Budget cap <input type="number" name="budget_cap" min="0" step="any"></label>
+            </div>
+            <p id="limits-error" class="error hidden" role="alert"></p>
+            <button type="submit" id="consent-submit">Approve and start</button>
+          </fieldset>
+        </form>
+      </div>
+
+      <!-- Step 4: live -->
+      <div class="panel hidden" id="step-live">
+        <h2 id="live-title">Live</h2>
+        <div id="call-status" class="call-status"></div>
+        <div id="notice" class="notice hidden" role="alert"></div>
+        <div id="captions" class="captions"></div>
+        <h3 class="hidden" id="decisions-title">Your decisions</h3>
+        <ol id="decisions" class="decisions"></ol>
+      </div>
+
+      <!-- Step 5: outcome -->
+      <div class="panel hidden" id="step-outcome">
+        <h2>Outcome</h2>
+        <div id="outcome"></div>
+        <div id="followup" class="followup hidden"></div>
+      </div>
+    </section>
+
+    <aside class="timeline">
+      <h2>Agent timeline</h2>
+      <ol id="timeline"></ol>
+    </aside>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

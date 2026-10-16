@@ -1,0 +1,9 @@
+fastapi==0.143.2
+uvicorn[standard]==0.54.0
+httpx==0.28.1
+anthropic==1.15.0
+mcp==2.3.0
+icalendar==7.3.0
+PyYAML==6.0.3
+python-dotenv==1.2.4
+pytest==9.1.1

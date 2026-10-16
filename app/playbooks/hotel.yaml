@@ -1,0 +1,20 @@
+name: hotel
+display: Hotel (special requests)
+keywords: [hotel, room, stay, check in, check-in, late check in, accessible room, group rate, suite]
+search_query: "hotel {what} near {where}"
+goal: Book a room with this request - {what}.
+consent_fields:
+  - {key: name, label: Name, default: "{user_name}", share_by_default: true}
+  - {key: dates, label: Dates, default: "{when}", share_by_default: true}
+  - {key: guests, label: Guests, default: "{party_size}", share_by_default: true}
+  - {key: special_request, label: Special request, default: "{what}", share_by_default: true}
+  - {key: callback_number, label: Callback number, default: "", share_by_default: false}
+default_limits:
+  window_start: null
+  window_end: null
+  tolerance_minutes: 0
+  budget_cap: null          # nightly rate cap
+  deposit_allowed: false
+decisions_for_user: [price above budget cap, different room type, deposit or card guarantee]
+confirmation_fields: [dates, room type, rate, confirmation number]
+opening_line: "Hi, I'm an AI assistant calling on behalf of {user_name} about a room booking. Do you have a moment?"

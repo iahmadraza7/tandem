@@ -1,0 +1,22 @@
+name: clinic
+display: Clinic (dental first)
+keywords: [dentist, dental, clinic, doctor, cleaning, checkup, teeth]
+search_query: "{what} near {where}"
+goal: Book an appointment for {what}.
+# What the consent card offers. The user ticks what the agent may say and can edit values.
+consent_fields:
+  - {key: name, label: Name, default: "{user_name}", share_by_default: true}
+  - {key: reason, label: Reason for visit, default: "{what}", share_by_default: true}
+  - {key: insurance_provider, label: Insurance provider, default: "", share_by_default: false}
+  - {key: callback_number, label: Callback number, default: "", share_by_default: false}
+  - {key: new_patient, label: New patient, default: "yes", share_by_default: true}
+# Limits the Guardian applies on its own (adjustable autonomy)
+default_limits:
+  window_start: null        # ISO datetime, earliest acceptable slot
+  window_end: null          # ISO datetime, latest acceptable slot
+  tolerance_minutes: 0      # auto accept this far outside the window
+  budget_cap: null          # first visit price cap, same currency as the business
+  deposit_allowed: false
+decisions_for_user: [different time, new patient question, insurance accepted, first visit price]
+confirmation_fields: [date and time]
+opening_line: "Hi, I'm an AI assistant calling on behalf of {user_name} to book an appointment. Do you have a moment?"
