@@ -34,8 +34,8 @@ Legend: [x] done and tested, [~] written but not tested live, [ ] to do. Update 
 - [~] Decision card: large, sticky at the top, kind label, big equal option buttons, countdown, chime, "Decision needed" tab title
 - [~] Outcome panel: large status, full date, calendar link only when confirmed, hold details and Call back for an open offer
 - [~] Projector sizes (timeline 16 px) and phone width 390 px without horizontal scroll
-- [ ] Open an existing session from a second device (link with the session id). Needed for TESTING.md "Laptop and phone
-  open: first tap wins" and e2e scenario e (skipped). Decide first: anyone with the link can answer cards
+- Won't do: open an existing session from a second device by link (decided 17 Oct). Anyone with the link could
+  answer cards; not needed for the demo. e2e scenario e stays skipped.
 
 ## Stage 0: setup (exit: one browser test call and one real call work)
 Ahmad

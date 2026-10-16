@@ -15,6 +15,8 @@ Checked against official docs on 16 Oct 2026. If something here turns out wrong 
 | No free Gemini | Google says free tier content may be used to improve products and read by human reviewers |
 | Nothing persisted | Privacy promise; simpler build |
 | Simulator for development | Real calls cost Twilio minutes; the simulator exercises the same webhook code |
+| No session link to open a session on a second device | Anyone with the link could answer the user's cards; not needed for the demo |
+| Card options all look the same (Accept is not highlighted) | We never nudge the user towards the committing choice. Point to mention to the judges |
 | Playwright (Python) for browser tests, dev only (requirements-dev.txt) | The stage flow (sticky cards, polling, stale session banner, phone width) can only be checked in a real browser. Python keeps it in pytest. Not in requirements.txt or the Docker image; skipped unless RUN_E2E=1 so normal pytest stays fast and free |
 | Webhook token stays in the query string (?token=) for now; the access log masks it (app/log_filters.py) | Known to work with any server URL. Moving it to a header needs the Vapi docs checked first (custom headers on the server URL); until then the filter keeps it out of logs |
 

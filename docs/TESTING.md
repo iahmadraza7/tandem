@@ -21,7 +21,7 @@ Passed in simulate mode, 17 Oct (not live):
 - [x] b) Ignore: no tap, card expires, Tentative, "Hold: 15 minutes", no calendar link, Call back with an answer
 - [x] c) Server restart: stale session banner in view, polling stops, reset button (mid call and on the shortlist)
 - [x] d) Phone 390x844: no horizontal scroll, card buttons fully on screen, Confirmed
-- [ ] e) Two browsers on one session, first tap wins: skipped, the page cannot open an existing session yet
+- [ ] e) Two browsers on one session, first tap wins: skipped on purpose, no session link (see DECISIONS.md)
   (first tap wins is covered at the API level in tests/test_flow.py)
 
 Live scenarios (tick when run on a real call or the real Cal.com event):
