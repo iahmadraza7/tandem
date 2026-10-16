@@ -51,13 +51,14 @@
         <form id="consent-form">
           <fieldset id="consent-fieldset">
             <div id="consent-fields" class="fields"></div>
-            <h3>Your limits <small>the Guardian decides inside these without asking you</small></h3>
+            <h3>Your limits <small>the Guardian checks every offer against these</small></h3>
             <div class="limits">
               <label>Earliest time <input type="datetime-local" name="window_start"></label>
               <label>Latest time <input type="datetime-local" name="window_end"></label>
               <label>Flex (minutes) <input type="number" name="tolerance_minutes" value="0" min="0"></label>
               <label>Budget cap <input type="number" name="budget_cap" min="0" step="any"></label>
             </div>
+            <label class="check"><input type="checkbox" name="confirm_slots" checked> Ask me before confirming any time</label>
             <p id="limits-error" class="error hidden" role="alert"></p>
             <button type="submit" id="consent-submit">Approve and start</button>
           </fieldset>

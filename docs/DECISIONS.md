@@ -15,6 +15,8 @@ Checked against official docs on 16 Oct 2026. If something here turns out wrong 
 | No free Gemini | Google says free tier content may be used to improve products and read by human reviewers |
 | Nothing persisted | Privacy promise; simpler build |
 | Simulator for development | Real calls cost Twilio minutes; the simulator exercises the same webhook code |
+| "Ask me before confirming any time" (limits.confirm_slots) on by default | The user confirms every time live, even the preferred one; a booking never lands without their tap. A missing value counts as on, so older clients fail safe |
+| End the call with Vapi's endCall tool, server end-call after 10 s as a fallback | Calls must not stay open after the outcome (cost, awkward silence). The fallback covers a model that forgets to hang up |
 | No session link to open a session on a second device | Anyone with the link could answer the user's cards; not needed for the demo |
 | Card options all look the same (Accept is not highlighted) | We never nudge the user towards the committing choice. Point to mention to the judges |
 | Playwright (Python) for browser tests, dev only (requirements-dev.txt) | The stage flow (sticky cards, polling, stale session banner, phone width) can only be checked in a real browser. Python keeps it in pytest. Not in requirements.txt or the Docker image; skipped unless RUN_E2E=1 so normal pytest stays fast and free |
@@ -34,6 +36,13 @@ Checked against official docs on 16 Oct 2026. If something here turns out wrong 
 - Waiting messages: request-start, request-response-delayed (timingMilliseconds 100 to 120000), request-complete, request-failed.
 - Live control: create call response has monitor.controlUrl; POST {"type":"say","content":...}, {"type":"add-message",...},
   {"type":"end-call"}, transfer. Control auth is OFF by default: set monitorPlan.controlAuthenticationEnabled true.
+  With auth on, the control URL needs "Authorization: Bearer <vapi PUBLIC api key>" (API reference, MonitorPlan).
+  "say" also takes endCallAfterSpoken (docs.vapi.ai/calls/call-features).
+- End call tool: {"type": "endCall"} in model.tools (docs.vapi.ai/tools/default-tools). Tool messages accept
+  {"type": "request-start", "content", "blocking": true}; blocking waits until the message is spoken (Vapi support
+  forum, not the docs). Checked 17 Oct: creating an assistant with this endCall tool returns 201 and stores it as
+  sent; the API rejects unknown fields (400 "property ... should not exist"), so the field names are real.
+- Assistant fields endCallMessage and endCallPhrases exist; endCallFunctionEnabled is not in the current reference.
 - Server messages: transcript is not sent by default; add "transcript" or transcript[transcriptType="final"] to serverMessages.
 - No storage: artifactPlan.recordingEnabled false, artifactPlan.transcriptPlan.enabled false.
 - Anthropic models listed in docs: claude-sonnet-5, claude-sonnet-4-6, claude-haiku-4-5-20251001 and others.
@@ -78,8 +87,10 @@ Checked against official docs on 16 Oct 2026. If something here turns out wrong 
 - Server sent events through their proxy: not documented. The web app falls back to polling.
 
 ## Still unverified (test on day 1)
-- Vapi accepts claude-haiku-5-5 on a live call.
-- Exact Vapi payload for tools inside a transient assistant (model.tools with server and messages).
+- Verified 17 Oct (Ahmad's first live call: phone rang, agent talked, booking confirmed): Vapi accepts
+  claude-haiku-5-5, and the transient assistant with server tools works.
+- The endCall goodbye is spoken in full before hang up (blocking request-start): check on the next live call.
+- Server end-call through the control URL with the public key: not yet run on a live call.
 - Vapi behaviour when the line is silent while a tool waits.
 - Cal.com free plan API key; booking without a key.
 - Alternate Clouds keeps an event stream open.

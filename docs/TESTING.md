@@ -18,6 +18,8 @@ Card deadline is 8 s in this run. Screenshots go to /tmp/tandem-shots/ (not the 
 Passed in simulate mode, 17 Oct (not live):
 - [x] a) Happy: clinic, phone place, approve, Accept the time card, Don't share the date of birth, Confirmed,
   full date, calendar file downloads
+- [x] a2) Preferred time offered (simulate_call.py --scenario preferred): card "Your preferred time is available.",
+  Accept, Confirmed. The consent box "Ask me before confirming any time" is ticked by default
 - [x] b) Ignore: no tap, card expires, Tentative, "Hold: 15 minutes", no calendar link, Call back with an answer
 - [x] c) Server restart: stale session banner in view, polling stops, reset button (mid call and on the shortlist)
 - [x] d) Phone 390x844: no horizontal scroll, card buttons fully on screen, Confirmed
@@ -27,7 +29,9 @@ Passed in simulate mode, 17 Oct (not live):
 Live scenarios (tick when run on a real call or the real Cal.com event):
 
 Phone
-- [ ] Slot inside limits: Guardian accepts alone, read back, Confirmed, calendar file
+- [ ] Preferred time (box ticked): agent asks for it first, card "Your preferred time is available.", Accept, Confirmed
+- [ ] After report_outcome: one goodbye, call hangs up by itself; if not, the server ends it within 10 s
+- [ ] Slot inside limits with the box unticked: Guardian accepts alone, read back, Confirmed, calendar file
 - [ ] Slot outside limits: card, Accept, Confirmed
 - [ ] Date of birth asked: Guardian card, Don't share, agent says it cannot share
 - [ ] Card ignored: holding lines at 8 s and 16 s, hold request, Tentative; open offer, call back, Confirmed

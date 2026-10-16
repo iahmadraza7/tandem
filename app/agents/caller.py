@@ -6,6 +6,8 @@ Flow per tool call from Vapi:
 """
 from __future__ import annotations
 
+import asyncio
+import logging
 from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -15,6 +17,10 @@ from app.agents import guardian, verifier
 from app.config import settings
 from app.session import Session, store
 from app.tools import vapi_client
+
+logger = logging.getLogger(__name__)
+GOODBYE = "Thank you for your help. Goodbye."
+_end_call_tasks: set[asyncio.Task] = set()
 
 ASK_USER_TOOL = {
     "name": "ask_user",
@@ -38,7 +44,7 @@ ASK_USER_TOOL = {
 
 REPORT_OUTCOME_TOOL = {
     "name": "report_outcome",
-    "description": "Call exactly once before the call ends to report how the booking ended.",
+    "description": "Call exactly once before the call ends to report how the booking ended. Then call endCall.",
     "parameters": {
         "type": "object",
         "properties": {
@@ -58,12 +64,32 @@ def _now_local() -> datetime:
     return datetime.now(ZoneInfo(settings.timezone))
 
 
+def _time_words(value: Any) -> str:
+    try:
+        return datetime.fromisoformat(str(value)).strftime("%A %d %B %Y at %H:%M")
+    except ValueError:
+        return str(value)
+
+
+def _preferred_time(limits: dict[str, Any]) -> str:
+    start, end = limits.get("window_start"), limits.get("window_end")
+    if not (start and end):
+        return "No preferred time was given: ask which times they have."
+    return f"First ask for {settings.user_name}'s preferred time: between {_time_words(start)} and {_time_words(end)}."
+
+
 def system_prompt(session: Session) -> str:
     book = playbooks.get(session.playbook)
     values = {"user_name": settings.user_name, **{k: v for k, v in session.request.items() if isinstance(v, (str, int))}}
     approved = guardian.approved_fields(session.consent)
     limits = session.consent.get("limits") or {}
     shared = "\n".join(f"- {k}: {v}" for k, v in approved.items()) or "- (nothing beyond the user's first name)"
+    if guardian.confirm_slots(limits):
+        accept_rule = ('Never confirm or agree to a time unless ask_user returned exactly "user chose: Accept" '
+                       "for that exact time.")
+    else:
+        accept_rule = ('Agree to a time only if ask_user returned "user chose: Accept" or '
+                       '"allowed by the user\'s limits: accept <that time>" for that exact time.')
     followup = ""
     if session.pending_offer and session.pending_offer.get("user_answer"):
         offer = session.pending_offer
@@ -83,16 +109,22 @@ User limits: time window {limits.get('window_start')} to {limits.get('window_end
 
 Rules:
 1. You already said you are an AI assistant calling for {settings.user_name}. If asked again, say so honestly.
-2. Any offer or question that is not covered above (a different time, a price, a deposit or card, a personal detail
-   not listed, anything that commits the user) goes to the ask_user tool. Never accept or share it yourself.
-   Always give slot offers as a full ISO date and time.
-3. Never give or ask for payment card or bank details. If they need payment, call ask_user with kind payment.
-4. If ask_user returns no_answer: do not accept. Ask them to hold the offer for 15 minutes for {settings.user_name}.
-   If they agree, report_outcome with status tentative and hold_expires; if not, status callback_needed. Then end politely.
-5. Before ending, read back the confirmation fields ({', '.join(book['confirmation_fields'])}) with the full date,
-   e.g. "So that's Tuesday, October 20 at 3 PM, correct?" Only if they say yes set read_back_confirmed true.
-6. Call report_outcome exactly once, then thank them and end the call.
-7. Keep every sentence short and natural. One question at a time."""
+2. Times. {_preferred_time(limits)}
+   For EVERY time they offer, preferred or alternative, call ask_user with kind "slot", offered_value the exact full
+   ISO date and time (e.g. 2026-10-20T15:00), options ["Accept", "Decline"], and a question that says whether it is
+   {settings.user_name}'s preferred time, e.g. "They can do your preferred time, Monday 19 October at 10 AM. Book it?"
+   or "Your preferred time is not free. They offer Tuesday 20 October at 3 PM. Accept?".
+   {accept_rule}
+3. Any other offer or question not covered above (a price, a deposit or card, a personal detail not listed, anything
+   that commits the user) goes to the ask_user tool. Never accept or share it yourself.
+4. Never give or ask for payment card or bank details. If they need payment, call ask_user with kind payment.
+5. If ask_user returns no_answer: do not accept. Ask them to hold the offer for 15 minutes for {settings.user_name}.
+   If they agree, report_outcome with status tentative and hold_expires; if not, status callback_needed.
+6. Before reporting a booking, read back the confirmation fields ({', '.join(book['confirmation_fields'])}) with the
+   full date, e.g. "So that's Tuesday, October 20 at 3 PM, correct?" Only if they say yes set read_back_confirmed true.
+7. Call report_outcome exactly once. As soon as it returns, call the endCall tool. Do not say goodbye yourself:
+   the goodbye is spoken for you when you call endCall.
+8. Keep every sentence short and natural. One question at a time."""
 
 
 def build_assistant(session: Session) -> dict[str, Any]:
@@ -112,6 +144,10 @@ def build_assistant(session: Session) -> dict[str, Any]:
         ],
     }
     report_tool = {"type": "function", "function": REPORT_OUTCOME_TOOL, "server": server}
+    # Vapi built-in end call tool (docs.vapi.ai/tools/default-tools). The blocking request-start message is spoken
+    # in full before the call ends, so the goodbye is said exactly once.
+    end_call_tool = {"type": "endCall",
+                     "messages": [{"type": "request-start", "content": GOODBYE, "blocking": True}]}
     opening = playbooks.fill(book["opening_line"], {"user_name": settings.user_name})
     if session.pending_offer and session.pending_offer.get("user_answer"):
         opening = f"Hi, I'm an AI assistant calling back on behalf of {settings.user_name} about the offer you made earlier."
@@ -122,7 +158,7 @@ def build_assistant(session: Session) -> dict[str, Any]:
             "provider": settings.vapi_model_provider,
             "model": settings.vapi_model,
             "messages": [{"role": "system", "content": system_prompt(session)}],
-            "tools": [ask_tool, report_tool],
+            "tools": [ask_tool, report_tool, end_call_tool],
         },
         "server": server,
         "serverMessages": ["tool-calls", "status-update", "end-of-call-report", 'transcript[transcriptType="final"]'],
@@ -218,8 +254,30 @@ async def handle_tool_call(session: Session, name: str, args: dict[str, Any]) ->
         return await handle_ask_user(session, args)
     if name == "report_outcome":
         verifier.apply(session, args, source="phone")
+        schedule_end_call(session)
         return "ok"
     return f"unknown tool {name}"
+
+
+def schedule_end_call(session: Session) -> None:
+    """Fallback: if the agent does not hang up after report_outcome, end the call through the control URL."""
+    task = asyncio.create_task(_end_call_if_still_active(session, (session.call or {}).get("vapi_call_id")))
+    _end_call_tasks.add(task)
+    task.add_done_callback(_end_call_tasks.discard)
+
+
+async def _end_call_if_still_active(session: Session, call_id: str | None) -> None:
+    await asyncio.sleep(settings.end_call_grace_seconds)
+    call = session.call or {}
+    if not call_id or call.get("vapi_call_id") != call_id or call.get("status") == "ended":
+        return  # already ended, or a call back replaced this call
+    if not call.get("control_url"):
+        return  # simulated call: nothing to hang up
+    session.log("Caller", "The call was still open after the outcome; ending it")
+    try:
+        await vapi_client.end_call(call["control_url"])
+    except Exception as exc:  # the call may have ended in the meantime; never crash the session
+        logger.warning("Ending the call through the control URL failed: %r", exc)
 
 
 def handle_status(session: Session, status: str) -> None:

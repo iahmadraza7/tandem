@@ -28,16 +28,44 @@ def test_unticked_field_goes_to_user():
     assert guardian.evaluate(CONSENT, "data", field="callback_number").action == "ask_user"
 
 
-def test_slot_inside_window_is_allowed():
-    assert guardian.evaluate(CONSENT, "slot", "2026-10-20T10:30").action == "allow"
+def _with_limits(**changes):
+    return {**CONSENT, "limits": {**CONSENT["limits"], **changes}}
 
 
-def test_slot_within_tolerance_is_allowed():
-    assert guardian.evaluate(CONSENT, "slot", "2026-10-20T12:20").action == "allow"
+AUTO = _with_limits(confirm_slots=False)  # "Ask me before confirming any time" switched off
 
 
-def test_slot_outside_window_goes_to_user():
-    assert guardian.evaluate(CONSENT, "slot", "2026-10-20T15:00").action == "ask_user"
+def test_confirm_slots_on_by_default_asks_even_inside_window():
+    # CONSENT has no confirm_slots key: missing means on
+    d = guardian.evaluate(CONSENT, "slot", "2026-10-20T10:30")
+    assert d.action == "ask_user" and d.reason == "Your preferred time is available."
+
+
+def test_confirm_slots_true_asks_inside_window_and_within_tolerance():
+    on = _with_limits(confirm_slots=True)
+    assert guardian.evaluate(on, "slot", "2026-10-20T10:30").reason == "Your preferred time is available."
+    near = guardian.evaluate(on, "slot", "2026-10-20T12:20")
+    assert near.action == "ask_user" and "within 30 minutes" in near.reason
+
+
+def test_confirm_slots_false_keeps_auto_accept_inside_window():
+    d = guardian.evaluate(AUTO, "slot", "2026-10-20T10:30")
+    assert d.action == "allow" and d.value == "2026-10-20T10:30"
+
+
+def test_confirm_slots_false_allows_within_tolerance():
+    assert guardian.evaluate(AUTO, "slot", "2026-10-20T12:20").action == "allow"
+
+
+def test_confirm_slots_string_false_and_null():
+    assert guardian.evaluate(_with_limits(confirm_slots="false"), "slot", "2026-10-20T10:30").action == "allow"
+    assert guardian.evaluate(_with_limits(confirm_slots=None), "slot", "2026-10-20T10:30").action == "ask_user"
+
+
+def test_slot_outside_window_goes_to_user_either_way():
+    for consent in (CONSENT, AUTO):
+        d = guardian.evaluate(consent, "slot", "2026-10-20T15:00")
+        assert d.action == "ask_user" and d.reason == "The time is outside your window."
 
 
 def test_unreadable_slot_goes_to_user():

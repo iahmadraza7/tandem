@@ -4,6 +4,7 @@ Rules run first and are pure Python. The model is never asked to decide what the
 consented to. Three possible actions:
   allow     the offer is inside the user's limits, or the field was consented
   ask_user  open a decision card and wait for the user
+Times: with limits.confirm_slots (default true) every time goes to the user, even inside the window.
 """
 from __future__ import annotations
 
@@ -46,6 +47,14 @@ def _norm_field(field: str | None) -> str:
     return re.sub(r"[^a-z0-9]+", "_", (field or "").lower()).strip("_")
 
 
+def confirm_slots(limits: dict[str, Any]) -> bool:
+    """limits.confirm_slots, default True: only an explicit false lets the agent accept a time alone."""
+    value = limits.get("confirm_slots", True)
+    if isinstance(value, str):
+        return value.strip().lower() not in ("false", "0", "no", "off")
+    return value is not False and value != 0
+
+
 def approved_fields(consent: dict[str, Any]) -> dict[str, str]:
     """Only the fields the user ticked, with the values they approved."""
     return {
@@ -83,6 +92,11 @@ def evaluate(
             return Decision("ask_user", "No time window was set, so every time goes to the user.")
         tolerance = timedelta(minutes=int(limits.get("tolerance_minutes") or 0))
         if start - tolerance <= slot <= end + tolerance:
+            # "Ask me before confirming any time" (default on): even a time inside the window goes to the user
+            if confirm_slots(limits):
+                reason = ("Your preferred time is available." if start <= slot <= end
+                          else f"The time is within {limits.get('tolerance_minutes')} minutes of your window.")
+                return Decision("ask_user", reason)
             return Decision("allow", "The time is inside your window.", slot.isoformat(timespec="minutes"))
         return Decision("ask_user", "The time is outside your window.")
 

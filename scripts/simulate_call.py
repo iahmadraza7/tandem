@@ -3,6 +3,7 @@
 Usage (server running with SIMULATE_CALLS=1):
     python scripts/simulate_call.py                 # clinic script, waits for your taps in the web app
     python scripts/simulate_call.py --scenario ignore   # you ignore the card: tests the hold and call back path
+    python scripts/simulate_call.py --scenario preferred   # they offer your preferred time: still a card to confirm
     python scripts/simulate_call.py --base http://localhost:8000
     python scripts/simulate_call.py --token <value>     # override WEBHOOK_TOKEN from .env
 
@@ -58,10 +59,28 @@ def tool(client, base, call_id, name, args):
     return answer
 
 
+def preferred_flow(client, base, call_id, slot_iso, slot_words):
+    """The front desk offers the user's preferred time. The agent must still ask before confirming."""
+    say(client, base, call_id, "user", f"Yes, {slot_words} is free.")
+    slot = tool(client, base, call_id, "ask_user", {
+        "question": f"They can do your preferred time, {slot_words}. Book it?", "kind": "slot",
+        "offered_value": slot_iso, "options": ["Accept", "Decline"]})
+    if slot == "user chose: Accept" or slot.startswith("allowed by the user's limits"):
+        say(client, base, call_id, "assistant", f"So that's {slot_words} for Ahmad, correct?")
+        say(client, base, call_id, "user", "Yes, that's booked.")
+        tool(client, base, call_id, "report_outcome", {"status": "confirmed", "date_time": slot_iso, "read_back_confirmed": True})
+    else:
+        say(client, base, call_id, "assistant", "Thank you. Ahmad will call back to choose a time.")
+        tool(client, base, call_id, "report_outcome", {"status": "callback_needed", "read_back_confirmed": False})
+    say(client, base, call_id, "assistant", "Thank you for your help. Goodbye.")
+    send(client, base, call_id, {"type": "end-of-call-report", "endedReason": "assistant-ended-call"})
+    print("Done.")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--base", default="http://localhost:8000")
-    parser.add_argument("--scenario", choices=["happy", "ignore"], default="happy")
+    parser.add_argument("--scenario", choices=["happy", "ignore", "preferred"], default="happy")
     parser.add_argument("--token", default=os.getenv("WEBHOOK_TOKEN"),
                         help="webhook token (default: WEBHOOK_TOKEN from .env)")
     args = parser.parse_args()
@@ -80,12 +99,23 @@ def main() -> None:
             time.sleep(1)
         call_id = info["call_id"]
         tuesday_3pm = next_weekday(1, 15)
+        # The user's preferred window from the consent card, as the real agent gets it in its prompt
+        limits = client.get(f"{base}/api/sessions/{info['session_id']}/state").json()["consent"].get("limits") or {}
+        window_start = limits.get("window_start") or next_weekday(0, 9)
+        preferred = datetime.fromisoformat(window_start) + timedelta(hours=1)
+        preferred_iso = preferred.isoformat(timespec="minutes")
+        preferred_words = f"{preferred:%A} at {preferred:%-I %p}"
 
         send(client, base, call_id, {"type": "status-update", "status": "ringing"})
         time.sleep(1)
         send(client, base, call_id, {"type": "status-update", "status": "in-progress"})
         say(client, base, call_id, "assistant", "Hi, I'm an AI assistant calling on behalf of Ahmad to book an appointment. Do you have a moment?")
-        say(client, base, call_id, "user", "Sure. Mornings are full next week. I can do Tuesday at 3 PM.")
+        say(client, base, call_id, "user", "Sure, how can I help?")
+        say(client, base, call_id, "assistant", f"Do you have anything on {preferred:%A} morning?")
+        if args.scenario == "preferred":
+            preferred_flow(client, base, call_id, preferred_iso, preferred_words)
+            return
+        say(client, base, call_id, "user", "Mornings are full next week. I can do Tuesday at 3 PM.")
         slot = tool(client, base, call_id, "ask_user", {
             "question": "They offer Tuesday 3 PM instead. Accept?", "kind": "slot",
             "offered_value": tuesday_3pm, "options": ["Accept", "Decline"]})
@@ -108,7 +138,7 @@ def main() -> None:
             say(client, base, call_id, "user", "Yes, that's booked.")
             tool(client, base, call_id, "report_outcome", {
                 "status": "confirmed", "date_time": tuesday_3pm, "read_back_confirmed": True})
-        say(client, base, call_id, "assistant", "Thank you, goodbye.")
+        say(client, base, call_id, "assistant", "Thank you for your help. Goodbye.")
         send(client, base, call_id, {"type": "end-of-call-report", "endedReason": "assistant-ended-call"})
         print("Done.")
 

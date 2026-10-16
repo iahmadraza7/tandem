@@ -35,6 +35,11 @@ class Settings:
     vapi_model_provider: str = _env("VAPI_MODEL_PROVIDER", "anthropic")
     vapi_model: str = _env("VAPI_MODEL", "claude-haiku-5-5")
     vapi_tool_timeout_seconds: int = int(_env("VAPI_TOOL_TIMEOUT_SECONDS", "25"))
+    # Public key (Dashboard > API keys > Public). The live control URL requires it as a Bearer token
+    # because monitorPlan.controlAuthenticationEnabled is true.
+    vapi_public_api_key: str | None = _env("VAPI_PUBLIC_API_KEY")
+    # Server fallback: seconds after report_outcome before the server ends a call that is still open
+    end_call_grace_seconds: float = float(_env("END_CALL_GRACE_SECONDS", "10"))
 
     # How long a decision card waits before the agent is told "no_answer".
     # Must stay below vapi_tool_timeout_seconds.

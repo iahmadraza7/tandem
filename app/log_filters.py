@@ -1,7 +1,7 @@
-"""Log filters: keep secrets out of the uvicorn access log.
+"""Log filters: keep secrets out of the logs.
 
 Vapi posts to /vapi/webhook?token=<WEBHOOK_TOKEN>, and uvicorn logs the full path with its query string.
-The filter masks the token value and keeps the rest of the line for debugging.
+httpx logs the Vapi live control URL when we end a call. The filter masks both and keeps the rest of the line.
 """
 from __future__ import annotations
 
@@ -9,10 +9,13 @@ import logging
 import re
 
 TOKEN_PARAM = re.compile(r"([?&]token=)[^&\s\"]*", re.IGNORECASE)
+# Vapi live control URL (https://<host>.vapi.ai/<call id>/control): whoever has it can control the call
+CONTROL_URL = re.compile(r"(https://[\w.-]*vapi\.ai/)[^\s/\"']+(/control)")
+LOGGERS = ("uvicorn.access", "httpx")  # httpx logs every outgoing request URL at INFO
 
 
 def redact(text: str) -> str:
-    return TOKEN_PARAM.sub(r"\1***", text)
+    return CONTROL_URL.sub(r"\1***\2", TOKEN_PARAM.sub(r"\1***", text))
 
 
 class RedactTokenFilter(logging.Filter):
@@ -28,7 +31,8 @@ class RedactTokenFilter(logging.Filter):
 
 
 def install() -> None:
-    """Attach the filter to the uvicorn access logger once."""
-    logger = logging.getLogger("uvicorn.access")
-    if not any(isinstance(f, RedactTokenFilter) for f in logger.filters):
-        logger.addFilter(RedactTokenFilter())
+    """Attach the filter to the uvicorn access logger and the httpx logger once."""
+    for name in LOGGERS:
+        logger = logging.getLogger(name)
+        if not any(isinstance(f, RedactTokenFilter) for f in logger.filters):
+            logger.addFilter(RedactTokenFilter())

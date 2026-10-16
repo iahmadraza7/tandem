@@ -52,7 +52,11 @@ Daniyal
 - [ ] Local tunnel (for example cloudflared) for Vapi webhooks during development
 
 ## Stage 1: P0 live phone path (exit: demo clinic booking on a real call, with the Guardian block)
-- [ ] Ahmad: real call through Vapi; fix payload shapes in caller.py and vapi_client.py against reality
+- [x] Ahmad: real call through Vapi (17 Oct: phone rang, agent talked, booking confirmed)
+- [~] Ahmad: end the call after report_outcome: endCall tool with a goodbye, server end-call fallback after 10 s.
+  Assistant JSON validated on the Vapi API (create and delete, no call); needs VAPI_PUBLIC_API_KEY; not yet live
+- [~] Ahmad: "Ask me before confirming any time" (confirm_slots, default on): preferred time asked first, every
+  offered time goes to a card. Guardian, flow and browser tests pass in simulate mode; not yet live
 - [ ] Ahmad: tune the Caller prompt on 5 real calls (read back, holding, hold request on no_answer)
 - [ ] Ahmad: Concierge on Claude Sonnet; verify JSON parsing on 10 example requests
 - [~] Daniyal: polish the web app for the stage (big cards, readable timeline, phone width). Done by Ahmad 17 Oct;

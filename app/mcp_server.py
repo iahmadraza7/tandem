@@ -55,16 +55,18 @@ async def choose_place(session_id: str, place_id: str) -> dict[str, Any]:
 
 @mcp.tool()
 async def approve_consent(session_id: str, share_keys: list[str], window_start: str | None = None,
-                    window_end: str | None = None, budget_cap: float | None = None) -> str:
+                    window_end: str | None = None, budget_cap: float | None = None,
+                    confirm_slots: bool = True) -> str:
     """Checkpoint 2: the user approves which consent fields may be shared and sets limits, then the call
-    or online booking starts. Times are ISO date and time, e.g. 2026-10-20T09:00."""
+    or online booking starts. Times are ISO date and time, e.g. 2026-10-20T09:00.
+    confirm_slots (default true): ask the user before confirming any time, even one inside the window."""
     session = _session(session_id)
     if session.selected_place is None:
         raise ValueError("Choose a place first")
     rows = {r["key"]: r for r in playbooks.consent_template(session.playbook, template_values(session))}
     fields = {k: {"value": r["value"], "share": k in share_keys} for k, r in rows.items()}
     limits = {"window_start": window_start, "window_end": window_end, "budget_cap": budget_cap,
-              "tolerance_minutes": 0, "deposit_allowed": False}
+              "tolerance_minutes": 0, "deposit_allowed": False, "confirm_slots": confirm_slots}
     service.approve_consent(session, fields, limits)
     return "started"
 

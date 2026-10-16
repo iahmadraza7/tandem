@@ -13,7 +13,7 @@ Shared by Ahmad and Daniyal. Change only together, in the same commit as the cod
 | places | list | Scout shortlist (max 5): id, name, address, rating, reviews, phone, website, open_now, booking, channel, source |
 | selected_place | dict | Checkpoint 1 |
 | channel | str | phone or web |
-| consent | dict | fields: {key: {value, share}}, limits: {window_start, window_end, tolerance_minutes, budget_cap, deposit_allowed} |
+| consent | dict | fields: {key: {value, share}}, limits: {window_start, window_end, tolerance_minutes, budget_cap, deposit_allowed, confirm_slots} |
 | cards | dict | card_id to Card |
 | call | dict | vapi_call_id, control_url (never sent to the browser), status |
 | outcome | dict | status, date_time, details, hold_expires, reason, source |
@@ -64,6 +64,10 @@ Every event: {event, session_id, at, data}. Event names:
 
 ## Vapi tools (server tools on POST /vapi/webhook)
 
+Limits: confirm_slots (bool, default true; a missing key counts as true): every offered time goes to the user as a
+slot card, even inside the window (reason "Your preferred time is available."). Only false lets the Guardian accept a
+time inside the window alone.
+
 ask_user(question, options[], kind: slot|price|data|payment|other, offered_value, field) returns one of:
 - `allowed by the user's limits: accept <value>`
 - `allowed: you may share <field>: <value>`
@@ -72,6 +76,11 @@ ask_user(question, options[], kind: slot|price|data|payment|other, offered_value
 - `no_answer: ...` (after CARD_DEADLINE_SECONDS; the agent asks the business to hold the offer)
 
 report_outcome(status, date_time, read_back_confirmed, hold_expires, details, notes) returns `ok`.
+
+endCall: Vapi built-in tool ({"type": "endCall"} in model.tools). Its blocking request-start message says
+"Thank you for your help. Goodbye." before the call ends. The prompt calls it right after report_outcome.
+Server fallback: END_CALL_GRACE_SECONDS (10) after report_outcome, if the same call is still active, the server POSTs
+{"type": "end-call"} to the monitor controlUrl (Bearer VAPI_PUBLIC_API_KEY).
 
 Vapi waiting lines on ask_user: request-start, then request-response-delayed at 8 s and 16 s.
 

@@ -15,6 +15,7 @@ default_limits:
   tolerance_minutes: 0
   budget_cap: null          # nightly rate cap
   deposit_allowed: false
+  confirm_slots: true      # ask the user before confirming any time, even inside the window
 decisions_for_user: [price above budget cap, different room type, deposit or card guarantee]
 confirmation_fields: [dates, room type, rate, confirmation number]
 opening_line: "Hi, I'm an AI assistant calling on behalf of {user_name} about a room booking. Do you have a moment?"

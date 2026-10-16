@@ -17,6 +17,7 @@ default_limits:
   tolerance_minutes: 0      # auto accept this far outside the window
   budget_cap: null          # first visit price cap, same currency as the business
   deposit_allowed: false
+  confirm_slots: true      # ask the user before confirming any time, even inside the window
 decisions_for_user: [different time, new patient question, insurance accepted, first visit price]
 confirmation_fields: [date and time]
 opening_line: "Hi, I'm an AI assistant calling on behalf of {user_name} to book an appointment. Do you have a moment?"

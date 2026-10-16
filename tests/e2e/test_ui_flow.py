@@ -137,6 +137,7 @@ def start_clinic_call(page: Page) -> None:
     start = page.locator("input[name=window_start]").input_value()
     end = page.locator("input[name=window_end]").input_value()
     assert start.endswith("T09:00") and end.endswith("T12:00") and start[:10] == end[:10], (start, end)
+    expect(page.get_by_label("Ask me before confirming any time")).to_be_checked()  # default on
     page.get_by_role("button", name="Approve and start").click()
     expect(page.locator("#call-status")).to_contain_text("Simulated call")
 
@@ -181,6 +182,26 @@ def test_a_happy_confirmed_with_calendar_link(page: Page):
     page.wait_for_function("() => document.title === 'Tandem'")
     page.screenshot(path=str(SHOTS / "a-happy-3-confirmed.png"), full_page=True)
     finish(desk)
+
+
+# ---- a2) preferred time offered: still confirmed with the user ----------------------------
+def test_a2_preferred_time_still_needs_your_tap(page: Page):
+    start_clinic_call(page)
+    window_day = page.locator("input[name=window_start]").input_value()[:10]
+    desk = front_desk("preferred")
+
+    slot = open_card(page, "your preferred time")
+    expect(slot.locator(".why")).to_have_text("Your preferred time is available.")
+    page.screenshot(path=str(SHOTS / "a2-preferred-1-card.png"))
+    slot.get_by_role("button", name="Accept").click()
+
+    expect(page.locator("#outcome .status")).to_have_text("Confirmed")
+    expect(page.locator("#outcome .when")).to_contain_text("10:00 AM")
+    expect(page.locator("#timeline")).to_contain_text("Asking you: Your preferred time is available.")
+    expect(page.locator("#timeline")).not_to_contain_text("Allowed without asking")
+    out = finish(desk)
+    assert f"{window_day}T10:00" in out
+    page.screenshot(path=str(SHOTS / "a2-preferred-2-confirmed.png"), full_page=True)
 
 
 # ---- b) card ignored -------------------------------------------------------------------
@@ -273,6 +294,5 @@ def test_c_restart_shows_stale_session_banner(page: Page, server: Server, stage:
 
 # ---- e) two devices, first tap wins ---------------------------------------------------
 def test_e_two_contexts_first_tap_wins():
-    pytest.skip("The page cannot open an existing session (no session link or id in the URL), "
-                "so a second browser cannot join the same session. First tap wins is covered at the API "
-                "level in tests/test_flow.py.")
+    pytest.skip("Skipped on purpose: no session link (anyone with it could answer cards; see docs/DECISIONS.md). "
+                "First tap wins is covered at the API level in tests/test_flow.py.")

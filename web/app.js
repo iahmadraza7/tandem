@@ -247,6 +247,7 @@ function renderConsent(consent) {
   form.window_end.value = String(limits.window_end || "").slice(0, 16) || fallback.end;
   form.tolerance_minutes.value = limits.tolerance_minutes ?? 0;
   form.budget_cap.value = limits.budget_cap ?? "";
+  form.confirm_slots.checked = limits.confirm_slots !== false; // on unless the playbook says otherwise
   validateLimits();
 }
 
@@ -282,6 +283,7 @@ $("#consent-form").addEventListener("submit", async (e) => {
     tolerance_minutes: num("tolerance_minutes") || 0,
     budget_cap: num("budget_cap"),
     deposit_allowed: false,
+    confirm_slots: form.get("confirm_slots") === "on",
   };
   $("#consent-fieldset").disabled = true;
   try {

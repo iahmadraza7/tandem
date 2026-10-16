@@ -71,9 +71,27 @@ async def test_ask_user_waits_for_human_answer():
 
 
 @pytest.mark.anyio
-async def test_guardian_allows_slot_inside_window_without_card():
+async def test_preferred_time_still_asks_the_user_by_default():
+    async with _client() as client:
+        session, call_id = await _setup_phone_session(client)  # limits have no confirm_slots: on by default
+        request = asyncio.create_task(client.post("/vapi/webhook", json=_tool_call(call_id, "ask_user", {
+            "question": "They can do your preferred time, Tuesday 10 AM. Book it?", "kind": "slot",
+            "offered_value": "2026-10-20T10:00", "options": ["Accept", "Decline"]})))
+        for _ in range(100):
+            await asyncio.sleep(0.02)
+            if session.cards:
+                break
+        card = next(iter(session.cards.values()))
+        assert card.kind == "slot" and card.meta["reason"] == "Your preferred time is available."
+        await client.post(f"/api/sessions/{session.id}/answer", json={"card_id": card.id, "choice": "Accept"})
+        assert (await request).json()["results"][0]["result"] == "user chose: Accept"
+
+
+@pytest.mark.anyio
+async def test_guardian_allows_slot_inside_window_without_card_when_confirm_is_off():
     async with _client() as client:
         session, call_id = await _setup_phone_session(client)
+        session.consent["limits"]["confirm_slots"] = False
         r = await client.post("/vapi/webhook", json=_tool_call(
             call_id, "ask_user", {"question": "10 AM?", "kind": "slot", "offered_value": "2026-10-20T10:00"}))
         assert r.json()["results"][0]["result"].startswith("allowed by the user's limits")

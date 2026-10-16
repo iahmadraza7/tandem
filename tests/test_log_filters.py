@@ -31,6 +31,12 @@ def test_lines_without_token_unchanged():
     assert "access_token=keep" in _access_line("/x?access_token=keep")
 
 
+def test_vapi_control_url_is_masked():
+    text = log_filters.redact('HTTP Request: POST https://phone-call-websocket.aws-us-west-2-backend-production1.vapi.ai/'
+                              '7420f27a-30fd-4f49-a995-5549ae7cc00d/control "HTTP/1.1 200 OK"')
+    assert "7420f27a" not in text and "vapi.ai/***/control" in text
+
+
 def test_installed_once_on_uvicorn_access_logger():
     import app.main  # noqa: F401  installs the filter on import
 
