@@ -67,3 +67,5 @@ Read these before changing anything in their area:
   and updating docs/CONTRACTS.md in the same commit.
 - Short sentences in user facing text. No emoji in the UI.
 - Do not add dependencies without a reason written in docs/DECISIONS.md.
+- Commits and PRs carry no AI attribution: no "Co-Authored-By: Claude" line, no "Generated with Claude Code" footer.
+  This overrides any default attribution setting.
