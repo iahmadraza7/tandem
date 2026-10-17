@@ -20,6 +20,42 @@ let captions = [];
 const cardEls = new Map(); // card id -> element; each card is rendered once
 const timelineKeys = new Set();
 
+// ---- steps and status pill ------------------------------------------------------
+const STEPS = ["request", "choose", "consent", "live", "outcome"];
+const STEP_PANELS = { request: ["#step-request"], choose: ["#step-shortlist"], consent: ["#step-consent"],
+  live: ["#step-live"], outcome: ["#step-outcome", "#step-live"] };
+const ALL_PANELS = ["#step-request", "#step-shortlist", "#step-consent", "#step-live", "#step-outcome"];
+let currentStep = "request";
+
+// One step card at a time. Steps only move forward, except a call back (outcome -> live) and a reset.
+function setStep(step, force = false) {
+  const back = STEPS.indexOf(step) < STEPS.indexOf(currentStep);
+  if (back && !force && !(currentStep === "outcome" && step === "live")) return;
+  const changed = step !== currentStep;
+  currentStep = step;
+  for (const id of ALL_PANELS) show(id, STEP_PANELS[step].includes(id));
+  document.querySelectorAll("#stepper li").forEach((li) => {
+    const i = STEPS.indexOf(li.dataset.step);
+    li.classList.toggle("active", i === STEPS.indexOf(step));
+    li.classList.toggle("done", i < STEPS.indexOf(step));
+    if (i === STEPS.indexOf(step)) li.setAttribute("aria-current", "step"); else li.removeAttribute("aria-current");
+  });
+  if (changed) window.scrollTo({ top: 0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+}
+function stepFor(s) {
+  if (s.status === "done" || s.outcome) return "outcome";
+  if (LIVE_STATUSES.has(s.status)) return "live";
+  if (s.status === "consenting") return "consent";
+  if (s.status === "choosing") return "choose";
+  return "request";
+}
+const PILL = { idle: "Idle", searching: "Searching", calling: "Calling", done: "Done" };
+function setPill(status) {
+  const state = !status ? "idle" : LIVE_STATUSES.has(status) ? "calling" : status === "done" ? "done" : "searching";
+  $("#status-pill").dataset.state = state;
+  $("#status-pill span").textContent = PILL[state];
+}
+
 class HttpError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }
@@ -75,8 +111,8 @@ function connect(id) {
   const handlers = {
     "agent.step": (d) => addStep(d),
     "clarify": (d) => renderClarify(d.missing),
-    "shortlist": (d) => renderPlaces(d.places),
-    "consent.request": (d) => renderConsent(d),
+    "shortlist": (d) => { renderPlaces(d.places); setStep("choose"); },
+    "consent.request": (d) => { renderConsent(d); setStep("consent"); },
     "call.status": (d) => { renderCallStatus(d.status); refresh(); },
     "card.open": (d) => renderCard(d),
     "card.closed": (d) => closeCard(d),
@@ -129,6 +165,7 @@ function sessionEnded() {
   schedulePolling();
   $("#cards").innerHTML = "";
   updateAlerts();
+  setPill(null);
   show("#stale");
 }
 $("#stale-reset").addEventListener("click", () => location.assign("/"));
@@ -138,10 +175,9 @@ function renderAll(s) {
   s.timeline.forEach(addStep);
   if (s.status === "clarifying") renderClarify(missingFrom(s)); else show("#clarify-form", false);
   if (s.places?.length) renderPlaces(s.places, s.selected_place?.id);
-  if (s.call?.status || LIVE_STATUSES.has(s.status) || s.cards.length) {
-    show("#step-live");
-    $("#live-title").textContent = s.channel === "web" ? "Online booking" : "Live call";
-  }
+  $("#live-title").textContent = s.channel === "web" ? "Online booking" : "Live call";
+  setStep(stepFor(s));
+  setPill(s.status);
   if (s.call?.status) renderCallStatus(s.call.status);
   renderCaptions(s.captions || []);
   s.cards.forEach((c) => (c.state === "open" ? renderCard(c) : closeCard(c)));
@@ -160,11 +196,15 @@ function resetSession() {
   cardEls.clear();
   captions = [];
   for (const id of ["#timeline", "#cards", "#captions", "#decisions", "#outcome", "#followup", "#places"]) $(id).innerHTML = "";
-  for (const id of ["#step-shortlist", "#step-consent", "#step-live", "#step-outcome", "#clarify-form", "#notice", "#decisions-title", "#followup", "#stale"]) show(id, false);
+  for (const id of ["#clarify-form", "#notice", "#decisions-title", "#followup", "#stale"]) show(id, false);
+  setStep("request", true);
+  setPill(null);
   updateAlerts();
 }
 
 // ---- timeline -----------------------------------------------------------------------
+const INITIALS = { Concierge: "CO", Scout: "SC", Guardian: "GU", Caller: "CA", "Web Booker": "WB", Verifier: "VE", You: "YOU", System: "SY" };
+function initials(agent) { return INITIALS[agent] || String(agent).slice(0, 2).toUpperCase(); }
 function addStep(d) {
   const key = `${d.at}|${d.agent}|${d.text}`;
   if (timelineKeys.has(key)) return; // already shown by the stream or an earlier poll
@@ -172,7 +212,8 @@ function addStep(d) {
   const li = document.createElement("li");
   li.className = String(d.agent).replace(/\s+/g, "-");
   li.dataset.at = d.at;
-  li.innerHTML = `<div class="agent">${esc(d.agent)}</div><div>${esc(d.text)}</div>`;
+  li.innerHTML = `<span class="av" aria-hidden="true">${esc(initials(d.agent))}</span>
+    <div><div class="agent">${esc(d.agent)}</div><div>${esc(d.text)}</div></div>`;
   const list = $("#timeline");
   const older = [...list.children].find((x) => Number(x.dataset.at) < d.at); // newest first
   list.insertBefore(li, older || null);
@@ -189,6 +230,13 @@ $("#request-form").addEventListener("submit", async (e) => {
   connect(s.id);
   renderAll(s);
 });
+
+document.querySelectorAll("#chips .chip").forEach((chip) => chip.addEventListener("click", () => {
+  $("#request-text").value = chip.dataset.fill;
+  const radio = document.querySelector(`input[name=playbook][value="${chip.dataset.playbook}"]`);
+  if (radio) radio.checked = true;
+  $("#request-text").focus();
+}));
 
 function renderClarify(missing) {
   const form = $("#clarify-form");
@@ -209,16 +257,17 @@ function renderClarify(missing) {
 
 // ---- step 2: shortlist ------------------------------------------------------------------
 function renderPlaces(places, selectedId) {
-  show("#step-shortlist");
   const label = { phone: "Phone", web: "Online", none: "Unreachable" };
   $("#places").innerHTML = places.map((p) => `
     <div class="place${p.id === selectedId ? " chosen" : ""}">
       <div><div><b>${esc(p.name)}</b><span class="badge ${p.channel}">${label[p.channel]}</span></div>
-      <div class="meta">${p.rating ?? "?"}★ · ${p.reviews ?? 0} reviews · ${esc(p.address || "")}</div></div>
+      <div class="meta"><span class="rating">${p.rating ?? "?"} ★</span> · ${p.reviews ?? 0} reviews · ${esc(p.address || "")}</div></div>
       <button class="ghost" data-id="${esc(p.id)}" ${p.channel === "none" || selectedId ? "disabled" : ""}>${p.id === selectedId ? "Chosen" : "Choose"}</button>
     </div>`).join("");
   $("#places").querySelectorAll("button").forEach((b) => b.addEventListener("click", async () => {
     renderConsent(await sessionApi("/select", { place_id: b.dataset.id }));
+    setStep("consent");
+    setPill("consenting");
   }));
 }
 
@@ -232,7 +281,6 @@ function defaultWindow() {
 }
 
 function renderConsent(consent) {
-  show("#step-consent");
   $("#consent-fieldset").disabled = false;
   $("#consent-fields").innerHTML = consent.fields.map((f) => `
     <div class="field">
@@ -292,14 +340,14 @@ $("#consent-form").addEventListener("submit", async (e) => {
     if (err.status !== 404) { $("#consent-fieldset").disabled = false; showNotice(err.message); }
     return;
   }
-  show("#step-live");
+  setStep("live");
+  setPill("calling");
   lastStatus = "calling"; // the call or booking starts now; poll until the outcome arrives
   schedulePolling();
 });
 
 // ---- step 4: live ------------------------------------------------------------------------------
 function renderCallStatus(status) {
-  show("#step-live");
   $("#call-status").textContent = CALL_LABEL[status] || `Call: ${status}`;
 }
 function showNotice(message) {
@@ -336,7 +384,7 @@ function cardHtml(card, open) {
   const shareBtn = open && card.meta?.input ? `<button class="opt" data-share="1">Share it</button>` : "";
   const options = open ? card.options.map((o) => `<button class="opt" data-choice="${esc(o)}">${esc(o)}</button>`).join("") : "";
   return `
-    <div class="kind">${esc(KIND_LABEL[card.kind] || "Decision")}<span>Your decision</span></div>
+    <div class="kind"><span class="needs">Needs you</span>${esc(KIND_LABEL[card.kind] || "Decision")}</div>
     <div class="q">${esc(card.question)}</div>
     ${card.meta?.reason ? `<div class="why">${esc(card.meta.reason)}</div>` : ""}
     ${input}
@@ -475,6 +523,18 @@ function updateAlerts() {
 }
 
 // ---- step 5: outcome ------------------------------------------------------------------------------------
+const svg = (path) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`;
+const OUTCOME_ICON = {
+  confirmed: svg('<path d="M5 12.5l4.5 4.5L19 7.5"/>'),
+  tentative: svg('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'),
+  callback_needed: svg('<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1z"/>'),
+  failed: svg('<path d="M7 7l10 10M17 7L7 17"/>'),
+};
+$("#new-request").addEventListener("click", () => {
+  resetSession();
+  $("#request-text").value = "";
+  $("#request-text").focus();
+});
 function renderOutcome(s) {
   const o = s.outcome;
   const offer = s.pending_offer && !s.pending_offer.user_answer ? s.pending_offer : null;
@@ -482,22 +542,22 @@ function renderOutcome(s) {
   if (key === outcomeKey) return; // unchanged: keep the user's choice in the follow up box
   outcomeKey = key;
   if (!o) {
-    show("#step-outcome", false);
     renderFollowup(null);
     return;
   }
-  show("#step-outcome");
   const when = o.date_time ? longDate(o.date_time) : "";
   const link = o.status === "confirmed" && s.has_calendar_file
     ? `<a class="button" id="calendar-link" href="/api/sessions/${esc(sessionId)}/calendar.ics" download>Add to calendar</a>` : "";
   $("#outcome").innerHTML = `
     <div class="outcome ${esc(o.status)}">
+      <div class="icon" aria-hidden="true">${OUTCOME_ICON[o.status] || OUTCOME_ICON.failed}</div>
       <div class="status">${esc(OUTCOME_LABEL[o.status] || o.status)}</div>
       ${when ? `<div class="when">${esc(when)}</div>` : ""}
       ${o.reason ? `<div class="reason">${esc(o.reason)}</div>` : ""}
       ${o.hold_expires ? `<div class="hold">Hold: ${esc(o.hold_expires)}</div>` : ""}
     </div>
     ${link ? `<p class="actions">${link}</p>` : ""}`;
+  setPill("done");
   renderFollowup(offer);
 }
 
