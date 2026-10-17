@@ -73,7 +73,9 @@ ask_user(question, options[], kind: slot|price|data|payment|other, offered_value
 - `allowed: you may share <field>: <value>`
 - `user chose: <option>`
 - `user allows sharing <field>: <value>` / `user declined: do not share <field> ...`
-- `no_answer: ...` (after CARD_DEADLINE_SECONDS; the agent asks the business to hold the offer)
+- `no_answer: ...` (after CARD_DEADLINE_SECONDS). Time, price or other offer: the agent asks the business to hold it
+  for 15 minutes, and pending_offer is saved for a call back. Personal detail (kind data): "Do not share <field>.
+  Say <user> can provide it in person", and no pending_offer is saved.
 
 report_outcome(status, date_time, read_back_confirmed, hold_expires, details, notes) returns `ok`.
 

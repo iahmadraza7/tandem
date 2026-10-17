@@ -40,6 +40,7 @@ def test_prompt_asks_preferred_time_first_and_every_time_goes_to_ask_user():
     assert "For EVERY time they offer, preferred or alternative, call ask_user" in prompt
     assert 'unless ask_user returned exactly "user chose: Accept"' in prompt
     assert "call the endCall tool" in prompt
+    assert "For a personal detail: do not share it" in prompt  # no_answer on a detail is not a hold
 
 
 def test_prompt_with_confirm_off_also_accepts_guardian_allowed_times():

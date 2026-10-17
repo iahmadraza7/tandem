@@ -118,8 +118,10 @@ Rules:
 3. Any other offer or question not covered above (a price, a deposit or card, a personal detail not listed, anything
    that commits the user) goes to the ask_user tool. Never accept or share it yourself.
 4. Never give or ask for payment card or bank details. If they need payment, call ask_user with kind payment.
-5. If ask_user returns no_answer: do not accept. Ask them to hold the offer for 15 minutes for {settings.user_name}.
-   If they agree, report_outcome with status tentative and hold_expires; if not, status callback_needed.
+5. If ask_user returns no_answer, follow the instruction in that reply. For a time, price or other offer: do not
+   accept; ask them to hold it for 15 minutes for {settings.user_name}. If they agree, report_outcome with status
+   tentative and hold_expires; if not, status callback_needed. For a personal detail: do not share it, say
+   {settings.user_name} can provide it in person, and carry on with the booking.
 6. Before reporting a booking, read back the confirmation fields ({', '.join(book['confirmation_fields'])}) with the
    full date, e.g. "So that's Tuesday, October 20 at 3 PM, correct?" Only if they say yes set read_back_confirmed true.
 7. Call report_outcome exactly once. As soon as it returns, call the endCall tool. Do not say goodbye yourself:
@@ -228,6 +230,14 @@ async def handle_ask_user(session: Session, args: dict[str, Any]) -> str:
               "input": kind == "data"},
     )
     answer = await session.wait_for_card(card, timeout=settings.card_deadline_seconds)
+    if answer is None and kind == "data":
+        # A personal detail is not an offer: nothing to hold or call back about. Not sharing is the safe default.
+        field = args.get("field") or "that detail"
+        session.log("Caller", f"No answer in time; not sharing {field}")
+        return (
+            f"no_answer: the user did not answer in time. Do not share {field}. Say {settings.user_name} can "
+            "provide it in person, then carry on with the booking."
+        )
     if answer is None:
         session.pending_offer = {
             "question": card.question, "kind": kind, "offered_value": args.get("offered_value"),

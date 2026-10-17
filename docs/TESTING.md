@@ -34,6 +34,7 @@ Phone
 - [ ] Slot inside limits with the box unticked: Guardian accepts alone, read back, Confirmed, calendar file
 - [ ] Slot outside limits: card, Accept, Confirmed
 - [ ] Date of birth asked: Guardian card, Don't share, agent says it cannot share
+- [ ] Date of birth card ignored: agent does not share it, says Ahmad can give it in person, no open offer on screen
 - [ ] Card ignored: holding lines at 8 s and 16 s, hold request, Tentative; open offer, call back, Confirmed
 - [ ] Front desk refuses to hold: Callback needed, no calendar file
 - [ ] "We'll call you back": Tentative, no calendar file

@@ -99,15 +99,30 @@ async def test_guardian_allows_slot_inside_window_without_card_when_confirm_is_o
 
 
 @pytest.mark.anyio
-async def test_no_answer_returns_no_answer_and_offers_followup(monkeypatch):
+async def test_no_answer_on_a_time_asks_for_a_hold_and_offers_followup(monkeypatch):
+    monkeypatch.setattr(settings, "card_deadline_seconds", 0.2)
+    async with _client() as client:
+        session, call_id = await _setup_phone_session(client)
+        r = await client.post("/vapi/webhook", json=_tool_call(call_id, "ask_user", {
+            "question": "They offer Tuesday 3 PM. Accept?", "kind": "slot", "offered_value": "2026-10-20T15:00"}))
+        result = r.json()["results"][0]["result"]
+        assert result.startswith("no_answer") and "hold the offer" in result
+        assert next(iter(session.cards.values())).state == "expired"
+        assert session.pending_offer is not None and session.pending_offer["offered_value"] == "2026-10-20T15:00"
+
+
+@pytest.mark.anyio
+async def test_no_answer_on_a_personal_detail_does_not_share_and_saves_no_offer(monkeypatch):
     monkeypatch.setattr(settings, "card_deadline_seconds", 0.2)
     async with _client() as client:
         session, call_id = await _setup_phone_session(client)
         r = await client.post("/vapi/webhook", json=_tool_call(
             call_id, "ask_user", {"question": "Date of birth?", "kind": "data", "field": "date_of_birth"}))
-        assert r.json()["results"][0]["result"].startswith("no_answer")
+        result = r.json()["results"][0]["result"]
+        assert result.startswith("no_answer") and "Do not share date_of_birth" in result
+        assert "in person" in result and "hold" not in result
         assert next(iter(session.cards.values())).state == "expired"
-        assert session.pending_offer is not None
+        assert session.pending_offer is None  # nothing to call back about
 
 
 @pytest.mark.anyio
